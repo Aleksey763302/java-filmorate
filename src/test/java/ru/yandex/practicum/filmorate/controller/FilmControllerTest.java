@@ -26,7 +26,6 @@ class FilmControllerTest {
                 .duration(Duration.ofMinutes(280)).build();
     }
 
-
     @Test
     void testCreateFilm() throws IOException, InterruptedException {
         filmController.createFilm(film);
@@ -69,14 +68,15 @@ class FilmControllerTest {
             assertEquals("дата релиза — не раньше 28 декабря 1895 года", e.getMessage());
         }
     }
+
     @Test
-    void testCreateFilmWithNoValidDuration(){
+    void testCreateFilmWithNoValidDuration() {
         film.setDuration(Duration.ofMinutes(-100));
-        try{
+        try {
             filmController.createFilm(film);
-            assertNotEquals(1,filmController.getFilms().size());
-        }catch (ValidationException e){
-            assertEquals("продолжительность фильма должна быть положительным числом.",e.getMessage());
+            assertNotEquals(1, filmController.getFilms().size());
+        } catch (ValidationException e) {
+            assertEquals("продолжительность фильма должна быть положительным числом.", e.getMessage());
         }
     }
 }
