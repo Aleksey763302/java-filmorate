@@ -7,7 +7,6 @@ import ru.yandex.practicum.filmorate.exceptions.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -23,7 +22,7 @@ class FilmControllerTest {
         film = Film.builder().name("very good film")
                 .description("film description")
                 .releaseDate(LocalDate.parse("1999-04-12"))
-                .duration(Duration.ofMinutes(280)).build();
+                .duration(280).build();
     }
 
     @Test
@@ -47,9 +46,7 @@ class FilmControllerTest {
     @Test
     void testCreateFilmWithNoValidDescription() {
         StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < 20; i++) {
-            sb.append("description");
-        }
+        sb.append("description".repeat(20));
         try {
             film.setDescription(new String(sb));
             assertNotEquals(1, filmController.getFilms().size());
@@ -71,7 +68,7 @@ class FilmControllerTest {
 
     @Test
     void testCreateFilmWithNoValidDuration() {
-        film.setDuration(Duration.ofMinutes(-100));
+        film.setDuration(-100);
         try {
             filmController.createFilm(film);
             assertNotEquals(1, filmController.getFilms().size());

@@ -30,7 +30,7 @@ public class FilmController {
     public ResponseEntity<Film> updateFilm(@RequestBody Film film) {
         if (!films.containsKey(film.getId())) {
             log.trace("фильм по id не найден");
-            return ResponseEntity.status(404).build();
+            return ResponseEntity.status(404).body(film);
         }
         filmValidate(film);
         films.put(film.getId(), film);
@@ -59,7 +59,7 @@ public class FilmController {
             log.trace("дата релиза не соответствует условию: {}", film.getReleaseDate());
             throw new ValidationException("дата релиза — не раньше 28 декабря 1895 года");
         }
-        if (film.getDuration().isNegative()) {
+        if (film.getDuration() < 0) {
             log.trace("продолжительность не соответствует условию: {}", film.getDuration());
             throw new ValidationException("продолжительность фильма должна быть положительным числом.");
         }

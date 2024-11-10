@@ -32,7 +32,7 @@ public class UserController {
         validateUser(user);
         if (!users.containsKey(user.getId())) {
             log.debug("не найден пользователь с ID {}", user.getId());
-            return ResponseEntity.status(404).build();
+            return ResponseEntity.status(404).body(user);
         }
         users.put(user.getId(), user);
         log.trace("обновление данных пользователя {}", user.getLogin());
