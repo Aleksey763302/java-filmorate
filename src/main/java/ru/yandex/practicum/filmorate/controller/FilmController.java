@@ -1,54 +1,53 @@
 package ru.yandex.practicum.filmorate.controller;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.yandex.practicum.filmorate.model.Film;
-import ru.yandex.practicum.filmorate.service.Validate;
+import ru.yandex.practicum.filmorate.service.FilmService;
 
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
 
 @Slf4j
 @RestController
 @RequestMapping("/films")
+@RequiredArgsConstructor
 public class FilmController {
-    private final Map<Integer, Film> films = new HashMap<>();
+    private final FilmService service;
 
     @PostMapping
     public Film createFilm(@RequestBody Film film) {
-        Validate.validateFilm(film);
-        film.setId(getNextId());
-        films.put(film.getId(), film);
-        log.info("добавлен новый фильм {}", film.getName());
-        return films.get(film.getId());
+        return service.createFilm(film);
+    }
+
+    @DeleteMapping("/{id}")
+    public void deleteFilm(@PathVariable("id") final int filmId) {
+        service.deleteFilm(filmId);
     }
 
     @PutMapping
-    public ResponseEntity<Film> updateFilm(@RequestBody Film film) {
-        if (!films.containsKey(film.getId())) {
-            log.trace("фильм по id не найден");
-            return ResponseEntity.status(404).body(film);
-        }
-        Validate.validateFilm(film);
-        films.put(film.getId(), film);
-        log.trace("обновлены данные о фильме{}", film.getName());
-        return ResponseEntity.ok(film);
+    public Film updateFilm(@RequestBody Film film) {
+        return service.updateFilm(film);
+    }
+
+    @GetMapping("/popular")
+    public Collection<Film> getFilms(@RequestParam(defaultValue = "10") String count) {
+        return service.getPopularFilms(count);
     }
 
     @GetMapping
-    public Collection<Film> getFilms() {
-        log.trace("получен запрос на показ списка фильмов");
-        return films.values();
+    public Collection<Film> getAllFilms() {
+        return service.getAllFilms();
     }
 
-
-    private int getNextId() {
-        int foundMaxId = films.keySet().stream()
-                .mapToInt(id -> id)
-                .max()
-                .orElse(0);
-        return ++foundMaxId;
+    @PutMapping("/{id}/like/{userId}")
+    public void addLike(@PathVariable("id") final int filmId, @PathVariable final int userId) {
+        service.addLike(filmId, userId);
     }
+
+    @DeleteMapping("/{id}/like/{userId}")
+    public void deleteLike(@PathVariable("id") final int filmId, @PathVariable final int userId) {
+        service.deleteLike(filmId, userId);
+    }
+
 }

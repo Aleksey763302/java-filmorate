@@ -2,6 +2,7 @@ package ru.yandex.practicum.filmorate.storage;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import ru.yandex.practicum.filmorate.exceptions.NotFoundFilmException;
 import ru.yandex.practicum.filmorate.model.Film;
 
 import java.util.*;
@@ -10,51 +11,59 @@ import java.util.*;
 @Component
 public class InMemoryFilmStorage implements FilmStorage {
     private final Map<Integer, Film> films = new HashMap<>();
+    private final Map<Integer, List<Integer>> likes = new HashMap<>();
 
     @Override
-    public void addFilm(final Film film) {
-        film.setId(getNextId());
+    public void addFilm(final Film film, boolean isCreate) {
+        if (isCreate) {
+            film.setId(getNextId());
+        }
         films.put(film.getId(), film);
-        log.debug("добавлен новый фильм {}", film.getName());
+        likes.put(film.getId(), new ArrayList<>());
     }
 
     @Override
-    public void deleteFilm(final int filmId) {
-        if (foundFilm(filmId)) {
-            films.remove(filmId);
-            log.debug("фильм с id: {} удален", filmId);
-        }
+    public void updateLikes(final Integer filmId, final List<Integer> likes) {
+        this.likes.put(filmId, likes);
     }
 
     @Override
-    public Optional<Film> updateFilm(final Film newfilm) {
-        if (foundFilm(newfilm.getId())) {
-            films.put(newfilm.getId(), newfilm);
-            log.trace("обновлены данные о фильме: {}", newfilm.getName());
-            return Optional.of(films.get(newfilm.getId()));
+    public Map<Integer, List<Integer>> getFilms() {
+        return likes;
+    }
+
+
+    @Override
+    public void deleteFilm(final int filmId, boolean isDeleteLikes) {
+        if (!films.containsKey(filmId)) {
+            throw new NotFoundFilmException();
         }
-        return Optional.empty();
+        films.remove(filmId);
+        if (isDeleteLikes) {
+            likes.remove(filmId);
+        }
+    }
+
+
+    @Override
+    public Film getFilmById(final int filmId) {
+        if (!films.containsKey(filmId)) {
+            throw new NotFoundFilmException();
+        }
+        return films.get(filmId);
     }
 
     @Override
-    public Optional<Film> getFilmById(int filmId) {
-        if (foundFilm(filmId)) {
-            return Optional.of(films.get(filmId));
+    public List<Integer> getLikesFilm(final int filmId) {
+        if (!likes.containsKey(filmId)) {
+            throw new NotFoundFilmException();
         }
-        return Optional.empty();
+        return likes.get(filmId);
     }
 
     @Override
     public Collection<Film> getAllFilms() {
         return films.values();
-    }
-    
-    private boolean foundFilm(final int filmId) {
-        if (!films.containsKey(filmId)) {
-            log.debug("фильм с id: {} не найден", filmId);
-            return false;
-        }
-        return true;
     }
 
     private int getNextId() {

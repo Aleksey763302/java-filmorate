@@ -1,59 +1,93 @@
 package ru.yandex.practicum.filmorate.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.model.User;
-import ru.yandex.practicum.filmorate.storage.InMemoryUserStorage;
+import ru.yandex.practicum.filmorate.storage.UserStorage;
 
 import java.util.*;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserService {
-    private final InMemoryUserStorage userStorage;
-    private final Map<User, List<User>> friendsUsers = new HashMap<>();
+    private final UserStorage storage;
 
-    public Optional<User> addFriend(final User newFriend, final User user) {
-        updateTable();
-        if (friendsUsers.containsKey(user)) {
-            List<User> friendsList = friendsUsers.get(user);
-            if (!friendsList.contains(newFriend)) {
-                friendsList.add(newFriend);
-                friendsUsers.put(user, friendsList);
-                List<User> friendsUser = friendsUsers.get(newFriend);
-                if(!friendsUser.contains(user)){
-                    friendsUser.add(user);
-                    friendsUsers.put(newFriend,friendsUser);
-                }
-                return Optional.of(user);
+    public User createUser(final User user) {
+        Validate.validateUser(user);
+        storage.createUser(user, true);
+        log.info("добавлен новый пользователь, id пользователя: {}", user.getId());
+        return storage.getUserById(user.getId());
+    }
+
+    public void deleteUser(final int userId) {
+        storage.deleteUser(userId, true);
+        log.info("пользователь удален, id пользователя: id {} ", userId);
+    }
+
+    public User updateUser(final User user) {
+        Validate.validateUser(user);
+        storage.getUserById(user.getId());
+        storage.deleteUser(user.getId(), false);
+        storage.createUser(user, false);
+        log.info("обновление данных пользователя, id пользователя: {}", user.getId());
+        return storage.getUserById(user.getId());
+    }
+
+    public Collection<User> getAllUsers() {
+        log.info("возвращен список пользователей");
+        return storage.getAllUsers();
+    }
+
+    public Optional<User> addFriend(final int newFriendId, final int userId) {
+        log.debug("запуск процесса добавления в друзья, id пользователя: {} id друга {}", userId, newFriendId);
+
+        List<Integer> friendsList = storage.getListFriends(userId);
+        log.debug("получен список друзей пользователя {} их количество {}", userId, friendsList.size());
+        if (!friendsList.contains(newFriendId)) {
+            friendsList.add(newFriendId);
+            storage.updateFriendList(userId, friendsList);
+
+            loggingFriends(userId);
+
+            List<Integer> friendsUser = storage.getListFriends(newFriendId);
+            if (!friendsUser.contains(userId)) {
+                friendsUser.add(userId);
+                storage.updateFriendList(newFriendId, friendsUser);
+
+                loggingFriends(newFriendId);
             }
-            return Optional.empty();
+            return Optional.of(storage.getUserById(newFriendId));
         }
         return Optional.empty();
     }
 
-    public void deleteFriend(final User friend, final User user) {
-        updateTable();
-        if (friendsUsers.containsKey(user)) {
-            List<User> friendsList = friendsUsers.get(user);
-            friendsList.remove(friend);
-            friendsUsers.put(user, friendsList);
-            List<User> friendsUser = friendsUsers.get(friend);
-            friendsUser.remove(user);
-            friendsUsers.put(friend,friendsUser);
-        }
+    public void deleteFriend(final Integer friendId, final Integer userId) {
+
+        List<Integer> friendsList = storage.getListFriends(userId);
+        friendsList.remove(friendId);
+        storage.updateFriendList(userId, friendsList);
+
+        List<Integer> friendsUser = storage.getListFriends(friendId);
+        friendsUser.remove(userId);
+        storage.updateFriendList(friendId, friendsUser);
+
     }
 
-    public Collection<User> getCommonFriends(final User friend, final User user) {
-        final List<User> friendList = friendsUsers.get(friend);
-        return friendsUsers.get(user).stream().filter(friendList::contains).toList();
+    public List<User> getFriendsUser(final int userid) {
+        log.info("запрос на получение списка друзей пользователя {}", userid);
+        return storage.getListFriends(userid).stream().map(storage::getUserById).toList();
     }
 
-    private void updateTable() {
-        Collection<User> getList = userStorage.getAllUsers();
-        Map<User, List<User>> newUsers = new HashMap<>();
-        getList.stream().filter(user -> !friendsUsers.containsKey(user))
-                .forEach(user -> newUsers.put(user,new ArrayList<>()));
-        friendsUsers.putAll(newUsers);
+    public List<User> getCommonFriends(final int friendId, final int userid) {
+        final List<Integer> friendListUserOne = storage.getListFriends(friendId);
+        final List<Integer> friendListUserTwo = storage.getListFriends(userid);
+        return friendListUserOne.stream().filter(friendListUserTwo::contains).map(storage::getUserById).toList();
+    }
+
+
+    private void loggingFriends(final Integer userid) {
+        log.debug("список друзей пользователя {} : {}", userid, storage.getListFriends(userid));
     }
 }

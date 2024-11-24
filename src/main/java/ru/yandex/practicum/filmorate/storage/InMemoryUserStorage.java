@@ -2,6 +2,7 @@ package ru.yandex.practicum.filmorate.storage;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import ru.yandex.practicum.filmorate.exceptions.NotFoundUserException;
 import ru.yandex.practicum.filmorate.model.User;
 
 import java.util.*;
@@ -10,38 +11,31 @@ import java.util.*;
 @Component
 public class InMemoryUserStorage implements UserStorage {
     private final Map<Integer, User> users = new HashMap<>();
+    private final Map<Integer, List<Integer>> friendsUsers = new HashMap<>();
 
     @Override
-    public void addUser(final User user) {
-        user.setId(getNextId());
+    public void createUser(final User user, final boolean isCreate) {
+        if (isCreate) {
+            user.setId(getNextId());
+        }
         users.put(user.getId(), user);
-        log.debug("добавлен новый пользователь {}", user.getLogin());
+        friendsUsers.put(user.getId(), new ArrayList<>());
     }
 
     @Override
-    public void deleteUser(final int userId) {
-        if (foundUser(userId)) {
-            users.remove(userId);
-            log.debug("пользователь с id {} удален", userId);
+    public void deleteUser(final int userId, final boolean isDeleteFriends) {
+        users.remove(userId);
+        if (isDeleteFriends) {
+            friendsUsers.remove(userId);
         }
     }
 
     @Override
-    public Optional<User> updateUser(final User newUser) {
-        if (!foundUser(newUser.getId())) {
-            return Optional.empty();
+    public User getUserById(final int userId) {
+        if (users.containsKey(userId)) {
+            return users.get(userId);
         }
-        users.put(newUser.getId(), newUser);
-        log.debug("обновление данных пользователя {}", newUser.getLogin());
-        return Optional.of(users.get(newUser.getId()));
-    }
-
-    @Override
-    public Optional<User> getUserById(final int userId) {
-        if (!foundUser(userId)) {
-            return Optional.empty();
-        }
-        return Optional.of(users.get(userId));
+        throw new NotFoundUserException();
     }
 
     @Override
@@ -49,13 +43,19 @@ public class InMemoryUserStorage implements UserStorage {
         return users.values();
     }
 
-    private boolean foundUser(final int userId) {
-        if (!users.containsKey(userId)) {
-            log.debug("не найден пользователь с ID {}", userId);
-            return false;
-        }
-        return true;
+    @Override
+    public void updateFriendList(final Integer userId, final List<Integer> friends) {
+        friendsUsers.put(userId, friends);
     }
+
+    @Override
+    public List<Integer> getListFriends(Integer userid) {
+        if (!users.containsKey(userid)) {
+            throw new NotFoundUserException();
+        }
+        return friendsUsers.get(userid);
+    }
+
 
     private int getNextId() {
         int foundMaxId = users.keySet().stream()

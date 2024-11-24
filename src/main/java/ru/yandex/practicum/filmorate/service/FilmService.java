@@ -1,54 +1,99 @@
 package ru.yandex.practicum.filmorate.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import ru.yandex.practicum.filmorate.exceptions.NotFoundUserException;
+import ru.yandex.practicum.filmorate.exceptions.NotValidParamException;
 import ru.yandex.practicum.filmorate.model.Film;
-import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.FilmStorage;
+import ru.yandex.practicum.filmorate.storage.UserStorage;
 
 import java.util.*;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class FilmService {
-    private final FilmStorage filmStorage;
-    private final Map<Film, List<User>> likes = new HashMap<>();
+    private final FilmStorage storage;
+    private final UserStorage userStorage;
 
-    public void addLike(final Film film , final User user){
-        updateTable();
-        List<User> users = likes.get(film);
-        if(!users.contains(user)){
-            users.add(user);
-            likes.put(film,users);
+    public Film createFilm(Film film) {
+        Validate.validateFilm(film);
+        storage.addFilm(film, true);
+        log.info("добавлен новый фильм: {}", film.getName());
+        return storage.getFilmById(film.getId());
+    }
+
+    public Film updateFilm(Film film) {
+        Validate.validateFilm(film);
+        final int filmId = film.getId();
+        storage.deleteFilm(filmId, false);
+        storage.addFilm(film, false);
+        log.info("обновлены данные о фильме, id фильма {}", film.getId());
+        return storage.getFilmById(film.getId());
+    }
+
+    public void deleteFilm(final int filmId) {
+        storage.deleteFilm(filmId, true);
+        log.info("фильм удален, id фильма {}", filmId);
+    }
+
+    public void addLike(Integer filmId, Integer userId) {
+        if (userStorage.getUserById(userId) == null) {
+            throw new NotFoundUserException();
+        }
+        List<Integer> users = storage.getLikesFilm(filmId);
+        if (!users.contains(userId)) {
+            users.add(userId);
+            storage.updateLikes(filmId, users);
+            String logMessage = "добавлен лайк фильму: id фильма: {}, id пользователя: {}";
+            log.info(logMessage, storage.getFilmById(filmId).getId(), userId);
         }
     }
 
-    public void deleteLike(final Film film , final User user){
-        List<User> users = likes.get(film);
-        users.remove(user);
+    public void deleteLike(Integer filmId, Integer userId) {
+        List<Integer> users = storage.getLikesFilm(filmId);
+        if (!users.contains(userId)) {
+            throw new NotFoundUserException();
+        }
+        users.remove(userId);
+        storage.updateLikes(filmId, users);
+        String logMessage = "пользователь удалил лайк фильму, id фильма: {}, id пользователя: {}";
+        log.info(logMessage, storage.getFilmById(filmId).getName(), userId);
     }
 
-    public Collection<Film> getPopularFilms(){
-        updateTable();
-        TreeSet<Film> sortedFilms = new TreeSet<>(new Comparator<Film>() {
+    public Collection<Film> getAllFilms() {
+        return storage.getAllFilms();
+    }
+
+    public Collection<Film> getPopularFilms(String countStr) {
+        int count;
+        try {
+            count = Integer.parseInt(countStr);
+        } catch (NumberFormatException e) {
+            throw new NotValidParamException(e.getMessage());
+        }
+
+        Map<Integer, List<Integer>> likes = storage.getFilms();
+        TreeSet<Integer> sortedFilms = new TreeSet<>(new Comparator<>() {
             int likes1;
             int likes2;
+
             @Override
-            public int compare(Film o1, Film o2) {
-                likes1 = likes.get(o1).size();
-                likes2 = likes.get(o2).size();
-                return likes1 - likes2;
+            public int compare(Integer filmOne, Integer filmTwo) {
+                likes1 = likes.get(filmOne).size();
+                likes2 = likes.get(filmTwo).size();
+                return likes2 - likes1;
             }
         });
         sortedFilms.addAll(likes.keySet());
-        return sortedFilms.stream().limit(10).toList();
+
+        List<Film> listFilms = sortedFilms.stream().limit(count)
+                .map(storage::getFilmById)
+                .toList();
+        log.trace("сформирован список по запросу getPopularFilms()");
+        return listFilms;
     }
 
-    private void updateTable() {
-        Collection<Film> getList = filmStorage.getAllFilms();
-        Map<Film, List<User>> newFilms = new HashMap<>();
-        getList.stream().filter(film -> !newFilms.containsKey(film))
-                .forEach(film -> newFilms.put(film,new ArrayList<>()));
-        likes.putAll(newFilms);
-    }
 }

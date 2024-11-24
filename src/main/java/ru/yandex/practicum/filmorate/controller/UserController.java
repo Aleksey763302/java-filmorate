@@ -1,55 +1,69 @@
 package ru.yandex.practicum.filmorate.controller;
 
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.yandex.practicum.filmorate.model.User;
-import ru.yandex.practicum.filmorate.service.Validate;
+import ru.yandex.practicum.filmorate.service.UserService;
 
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/users")
 public class UserController {
-    private final Map<Integer, User> users = new HashMap<>();
+    private final UserService service;
 
     @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
     public User createUser(@Valid @RequestBody User user) {
-        Validate.validateUser(user);
-        user.setId(getNextId());
-        users.put(user.getId(), user);
-        log.trace("добавлен новый пользователь {}", user.getLogin());
-        return user;
+        return service.createUser(user);
     }
 
     @PutMapping
-    public ResponseEntity<User> updateUser(@Valid @RequestBody User user) {
-        Validate.validateUser(user);
-        if (!users.containsKey(user.getId())) {
-            log.debug("не найден пользователь с ID {}", user.getId());
-            return ResponseEntity.status(404).body(user);
-        }
-        users.put(user.getId(), user);
-        log.trace("обновление данных пользователя {}", user.getLogin());
-        return ResponseEntity.ok(user);
+    @ResponseStatus(HttpStatus.OK)
+    public User updateUser(@Valid @RequestBody User user) {
+        return service.updateUser(user);
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.OK)
+    public void deleteUser(@PathVariable int id) {
+        service.deleteUser(id);
     }
 
     @GetMapping
     public Collection<User> getUsers() {
-        log.trace("получен запрос на получение списка пользователей");
-        return users.values();
+        return service.getAllUsers();
     }
 
-
-    private int getNextId() {
-        int foundMaxId = users.keySet().stream()
-                .mapToInt(id -> id)
-                .max()
-                .orElse(0);
-        return ++foundMaxId;
+    @PutMapping("/{id}/friends/{friendId}")
+    public ResponseEntity<User> addFriend(@PathVariable("id") int userId, @PathVariable int friendId) {
+        Optional<User> newFriend = service.addFriend(friendId, userId);
+        return newFriend.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.badRequest().build());
     }
+
+    @DeleteMapping("/{id}/friends/{friendId}")
+    public void deleteFriend(@PathVariable("id") int userId, @PathVariable int friendId) {
+        service.deleteFriend(friendId, userId);
+    }
+
+    @GetMapping("/{id}/friends")
+    public List<User> getFriendsUser(@PathVariable int id) {
+        return service.getFriendsUser(id);
+    }
+
+    @GetMapping("/{id}/friends/common/{otherId}")
+    public ResponseEntity<List<User>> getCommonFriends(@PathVariable("id") int userId,
+                                                       @PathVariable("otherId") int otherUserId) {
+        List<User> commonFriends = service.getCommonFriends(otherUserId, userId);
+        return ResponseEntity.ok(commonFriends);
+    }
+
 }
