@@ -42,7 +42,7 @@ class FilmControllerTest {
             filmController.createFilm(film);
             assertNotEquals(1, filmController.getFilms("10").size());
         } catch (ValidationException e) {
-            assertEquals("имя не может быть пустым", e.getMessage());
+            assertEquals("имя не может быть пустым", e.getReason());
         }
 
     }
@@ -55,7 +55,7 @@ class FilmControllerTest {
             film.setDescription(new String(sb));
             assertNotEquals(1, filmController.getFilms("10").size());
         } catch (ValidationException e) {
-            assertEquals("максимальная длина описания — 200 символов", e.getMessage());
+            assertEquals("максимальная длина описания — 200 символов", e.getReason());
         }
     }
 
@@ -66,7 +66,7 @@ class FilmControllerTest {
             filmController.createFilm(film);
             assertNotEquals(1, filmController.getFilms("10").size());
         } catch (ValidationException e) {
-            assertEquals("дата релиза — не раньше 28 декабря 1895 года", e.getMessage());
+            assertEquals("дата релиза — не раньше 28 декабря 1895 года", e.getReason());
         }
     }
 
@@ -77,7 +77,7 @@ class FilmControllerTest {
             filmController.createFilm(film);
             assertNotEquals(1, filmController.getFilms("10").size());
         } catch (ValidationException e) {
-            assertEquals("продолжительность фильма должна быть положительным числом.", e.getMessage());
+            assertEquals("продолжительность фильма должна быть положительным числом.", e.getReason());
         }
     }
 }

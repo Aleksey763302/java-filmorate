@@ -40,7 +40,7 @@ class UserControllerTest {
             userController.createUser(user);
             assertNotEquals(1, userController.getUsers().size());
         } catch (ValidationException e) {
-            assertEquals("электронная почта не может быть пустой и должна содержать символ @", e.getMessage());
+            assertEquals("электронная почта не может быть пустой и должна содержать символ @", e.getReason());
         }
     }
 
@@ -51,7 +51,7 @@ class UserControllerTest {
             userController.createUser(user);
             assertNotEquals(1, userController.getUsers().size());
         } catch (ValidationException e) {
-            assertEquals("дата рождения не может быть в будущем", e.getMessage());
+            assertEquals("дата рождения не может быть в будущем", e.getReason());
         }
     }
 
