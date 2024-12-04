@@ -4,6 +4,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import ru.yandex.practicum.filmorate.exceptions.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.service.UserService;
+import ru.yandex.practicum.filmorate.storage.InMemoryUserStorage;
 
 import java.time.LocalDate;
 import java.util.Optional;
@@ -12,12 +14,12 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class UserControllerTest {
 
-    User user;
     UserController userController;
+    User user;
 
     @BeforeEach
     void setUp() {
-        userController = new UserController();
+        userController = new UserController(new UserService(new InMemoryUserStorage()));
         user = User.builder().email("qwerty@ya.ru")
                 .login("jktu")
                 .birthday(LocalDate.of(1990, 1, 23))
@@ -38,7 +40,7 @@ class UserControllerTest {
             userController.createUser(user);
             assertNotEquals(1, userController.getUsers().size());
         } catch (ValidationException e) {
-            assertEquals("электронная почта не может быть пустой и должна содержать символ @", e.getMessage());
+            assertEquals("электронная почта не может быть пустой и должна содержать символ @", e.getReason());
         }
     }
 
@@ -49,7 +51,7 @@ class UserControllerTest {
             userController.createUser(user);
             assertNotEquals(1, userController.getUsers().size());
         } catch (ValidationException e) {
-            assertEquals("дата рождения не может быть в будущем", e.getMessage());
+            assertEquals("дата рождения не может быть в будущем", e.getReason());
         }
     }
 
