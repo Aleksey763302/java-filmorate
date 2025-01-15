@@ -4,11 +4,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import ru.yandex.practicum.filmorate.exceptions.NotFoundFilmException;
-import ru.yandex.practicum.filmorate.exceptions.NotFoundUserException;
-import ru.yandex.practicum.filmorate.exceptions.NotValidParamException;
-import ru.yandex.practicum.filmorate.exceptions.ValidationException;
-
+import ru.yandex.practicum.filmorate.exceptions.*;
 
 @RestControllerAdvice
 public class ErrorHandler {
@@ -35,7 +31,26 @@ public class ErrorHandler {
 
     @ExceptionHandler
     public ErrorResponse handleInternalServerError(final Throwable e) {
-        return ErrorResponse.create(e, HttpStatus.INTERNAL_SERVER_ERROR, "Произошла непредвиденная ошибка");
+        return ErrorResponse.create(e, HttpStatus.INTERNAL_SERVER_ERROR, "произошла непредвиденная ошибка");
     }
 
+    @ExceptionHandler
+    public ErrorResponse notFoundGenre(final NotFoundGenre e) {
+        return ErrorResponse.create(e, HttpStatus.NOT_FOUND, "жанр не найден");
+    }
+
+    @ExceptionHandler
+    public ErrorResponse incorrectGenreID(final IncorrectGenreID e) {
+        return ErrorResponse.create(e, HttpStatus.BAD_REQUEST, "введен некорректный ID жанра");
+    }
+
+    @ExceptionHandler
+    public ErrorResponse incorrectMpaID(final IncorrectMpaID e) {
+        return ErrorResponse.create(e, HttpStatus.BAD_REQUEST, "введен некорректный ID рейтинга");
+    }
+
+    @ExceptionHandler
+    public ErrorResponse notFoundMpa(final NotFoundRating e) {
+        return ErrorResponse.create(e, HttpStatus.NOT_FOUND, "рейтинг не найден");
+    }
 }
