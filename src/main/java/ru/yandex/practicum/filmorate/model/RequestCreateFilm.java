@@ -23,7 +23,12 @@ public class RequestCreateFilm {
     private List<ID> genres;
 
     public FilmDto getFilmDto() {
-        return FilmDto.builder().name(name).description(description).duration(duration).releaseDate(releaseDate).build();
+        return FilmDto.builder()
+                .name(name)
+                .description(description)
+                .duration(duration)
+                .releaseDate(releaseDate)
+                .build();
     }
 
 }

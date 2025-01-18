@@ -1,13 +1,16 @@
 package ru.yandex.practicum.filmorate.model;
 
 import lombok.Data;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import ru.yandex.practicum.filmorate.model.dto.UserDto;
 
 import java.time.LocalDate;
+import java.util.Objects;
 
 @Component
 @Data
+@RequiredArgsConstructor
 public class RequestUser {
     Integer id;
     String email;
@@ -17,7 +20,7 @@ public class RequestUser {
 
     public UserDto getUserDto() {
         UserDto user = new UserDto();
-        if (id != null) {
+        if (Objects.nonNull(id)) {
             user.setId(id);
         }
         user.setEmail(email);

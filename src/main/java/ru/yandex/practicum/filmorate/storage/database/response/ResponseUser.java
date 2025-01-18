@@ -4,6 +4,7 @@ import lombok.Builder;
 import ru.yandex.practicum.filmorate.model.dto.UserDto;
 
 import java.time.LocalDate;
+import java.util.Objects;
 
 @Builder
 public class ResponseUser {
@@ -15,7 +16,7 @@ public class ResponseUser {
 
     public UserDto getUserDto() {
         UserDto user = new UserDto();
-        if (id != null) {
+        if (Objects.nonNull(id)) {
             user.setId(id);
         }
         user.setEmail(email);

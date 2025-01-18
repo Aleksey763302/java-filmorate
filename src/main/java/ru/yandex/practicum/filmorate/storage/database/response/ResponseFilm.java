@@ -36,10 +36,4 @@ public class ResponseFilm {
                 .genres(genres)
                 .build();
     }
-
-    public void addGenre(Genre genre) {
-        if (genre != null) {
-            genres.add(genre);
-        }
-    }
 }

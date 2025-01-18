@@ -9,5 +9,5 @@ spring:
     username: sa
     password: password
 logging.level:
-  ru.yandex.practicum.filmorate: WARN
+  ru.yandex.practicum.filmorate: DEBUG
   org.zalando.logbook: TRACE

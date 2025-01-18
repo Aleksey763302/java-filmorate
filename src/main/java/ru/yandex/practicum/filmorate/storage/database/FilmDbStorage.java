@@ -4,8 +4,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.DataAccessException;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.PreparedStatementCreator;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.namedparam.SqlParameterSource;
+import org.springframework.jdbc.core.namedparam.SqlParameterSourceUtils;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
@@ -23,8 +25,6 @@ import ru.yandex.practicum.filmorate.storage.database.mappers.film.ResponseFilmR
 import ru.yandex.practicum.filmorate.storage.database.response.ResponseFilm;
 import ru.yandex.practicum.filmorate.model.dto.FilmDto;
 
-import java.sql.Date;
-import java.sql.PreparedStatement;
 import java.util.*;
 
 @Slf4j
@@ -32,7 +32,7 @@ import java.util.*;
 @Repository
 @RequiredArgsConstructor
 public class FilmDbStorage implements FilmStorage {
-    private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate jdbc;
     private final ResponseFilmRowMapper responseMapper;
     private final GenreDbStorage genreDbStorage;
     private final RatingDbStorage ratingDbStorage;
@@ -41,33 +41,31 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public ResponseFilm createFilm(RequestCreateFilm request) {
-        String sqlQuery = "INSERT INTO films (name,description,releaseDate,duration) VALUES (?,?,?,?);";
-        Integer filmId;
+        SqlParameterSource[] batch = SqlParameterSourceUtils.createBatch(request.getFilmDto());
+        String sqlQuery = "INSERT INTO films (name,description,releaseDate,duration) VALUES (:name,:description,:releaseDate,:duration);";
+        int filmId;
         KeyHolder keyHolder = new GeneratedKeyHolder();
-        PreparedStatementCreator stm = createPreparedStatement(request, sqlQuery);
-        int result;
+        int[] result;
         try {
-            result = jdbcTemplate.update(stm, keyHolder);
-            filmId = (Integer) keyHolder.getKey();
-            if (result == 0) {
+            result = jdbc.batchUpdate(sqlQuery, batch, keyHolder);
+            filmId = Objects.requireNonNull(keyHolder.getKey()).intValue();
+            if (result.length == 0) {
                 throw new ErrorAddingData("данные не были добавлены");
             }
         } catch (DataAccessException e) {
             log.debug("ошибка при добавлении фильма: {}", e.getMessage());
             throw new ErrorAddingData(e.getMessage());
         }
-        if (request.getMpa() != null) {
-            if (ratingDbStorage.getMpa(request.getMpa().getId()) == null) {
-                ratingDbStorage.addMpa(filmId, null);
+        if (Objects.nonNull(request.getMpa())) {
+            if (Objects.isNull(ratingDbStorage.getMpa(request.getMpa().getId()))) {
                 throw new IncorrectMpaID("неверный id mpa");
             }
             ratingDbStorage.addMpa(filmId, request.getMpa().getId());
         }
         List<ID> genres = request.getGenres();
-        if (genres != null) {
+        if (Objects.nonNull(genres)) {
             for (ID id : genres) {
-                if (genreDbStorage.getGenre(id.getId()) == null) {
-                    genreDbStorage.addGenreToFilm(filmId, null);
+                if (Objects.isNull(genreDbStorage.getGenre(id.getId()))) {
                     throw new IncorrectGenreID("неверный id жанра");
                 }
                 genreDbStorage.addGenreToFilm(filmId, id.getId());
@@ -78,17 +76,19 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public ResponseFilm updateFilm(RequestCreateFilm request) {
-        String sqlQuery = "UPDATE films SET name = ?,description = ?,releaseDate = ?,duration = ? WHERE film_id = ?;";
-        PreparedStatementCreator psc = createPreparedStatement(request, sqlQuery);
-        final int result;
+        SqlParameterSource[] batch = SqlParameterSourceUtils.createBatch(request.getFilmDto());
+        String sqlQuery = "UPDATE films " +
+                "SET name = :name, description = :description, releaseDate = :releaseDate, duration = :duration " +
+                "WHERE film_id = " + request.getId();
+        int[] result;
         try {
-            result = jdbcTemplate.update(psc);
+            result = jdbc.batchUpdate(sqlQuery, batch);
         } catch (DataAccessException e) {
             log.debug(e.getMessage());
             throw new RuntimeException(e);
         }
 
-        if (result == 0) {
+        if (result.length == 0) {
             log.debug("ошибка при обновлении фильма");
             throw new ErrorAddingData("данные не были обновлены");
         }
@@ -97,9 +97,11 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public void addLike(int filmID, int userID) {
-        String sqlQuery = "INSERT INTO likes (film_id,user_id) VALUES (?,?);";
+        SqlParameterSource namedParameters = new MapSqlParameterSource()
+                .addValue("filmID", filmID).addValue("userID", userID);
+        String sqlQuery = "INSERT INTO likes (film_id,user_id) VALUES (:filmID,:userID)";
         try {
-            jdbcTemplate.update(sqlQuery, filmID, userID);
+            jdbc.update(sqlQuery, namedParameters);
         } catch (DataAccessException e) {
             log.debug("ошибка при добавлении лайка: {}", e.getMessage());
             throw new RuntimeException(e);
@@ -108,9 +110,11 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public void deleteLike(int filmID, int userID) {
-        String sqlQuery = "DELETE FROM likes WHERE film_id = ? AND user_id = ?;";
+        SqlParameterSource namedParameters = new MapSqlParameterSource()
+                .addValue("filmID", filmID).addValue("userID", userID);
+        String sqlQuery = "DELETE FROM likes WHERE film_id = :filmID AND user_id = :userID";
         try {
-            jdbcTemplate.update(sqlQuery, filmID, userID);
+            jdbc.update(sqlQuery, namedParameters);
         } catch (DataAccessException e) {
             log.debug("ошибка при удалении лайка: {}", e.getMessage());
             throw new RuntimeException(e);
@@ -119,9 +123,11 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public void deleteFilm(int filmID) {
-        String sqlQuery = "DELETE FROM films WHERE film_id = ?;";
+        SqlParameterSource namedParameters = new MapSqlParameterSource()
+                .addValue("filmID", filmID);
+        String sqlQuery = "DELETE FROM films WHERE film_id = :filmID";
         try {
-            jdbcTemplate.update(sqlQuery, filmID);
+            jdbc.update(sqlQuery, namedParameters);
         } catch (DataAccessException e) {
             log.debug("ошибка при удалении фильма: {}", e.getMessage());
             throw new RuntimeException(e);
@@ -130,15 +136,16 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public ResponseFilm getFilmById(int filmID) {
-        String sqlQuery = "SELECT * FROM films WHERE film_id = ?;";
+        SqlParameterSource namedParameters = new MapSqlParameterSource().addValue("id", filmID);
+        String sqlQuery = "SELECT * FROM films WHERE film_id = :id;";
         ResponseFilm responseFilm;
         try {
-            responseFilm = jdbcTemplate.queryForObject(sqlQuery, responseMapper, filmID);
+            responseFilm = jdbc.queryForObject(sqlQuery, namedParameters, responseMapper);
         } catch (DataAccessException e) {
             log.debug("ошибка при получении фильма из БД: {}", e.getMessage());
             throw new RuntimeException(e);
         }
-        assert responseFilm != null;
+        assert Objects.nonNull(responseFilm);
         Mpa rating = ratingDbStorage.getMpaFilm(filmID);
         List<Genre> genre = genreDbStorage.getGenreFilm(filmID);
         responseFilm.setGenres(genre);
@@ -146,13 +153,14 @@ public class FilmDbStorage implements FilmStorage {
         return responseFilm;
     }
 
-
     @Override
     public List<Integer> getLikesFilm(int filmID) {
-        String sqlQuery = "SELECT film_id, user_id FROM likes WHERE film_id = ?;";
+        SqlParameterSource namedParameters = new MapSqlParameterSource()
+                .addValue("filmID", filmID);
+        String sqlQuery = "SELECT film_id, user_id FROM likes WHERE film_id = :filmID";
         List<Integer> likes;
         try {
-            likes = jdbcTemplate.query(sqlQuery, likesMapper, filmID);
+            likes = jdbc.query(sqlQuery, namedParameters, likesMapper);
         } catch (DataAccessException e) {
             log.debug("ошибка при получении списка лайков из БД: {}", e.getMessage());
             throw new RuntimeException(e);
@@ -164,7 +172,7 @@ public class FilmDbStorage implements FilmStorage {
     public List<FilmDto> getAllFilms() {
         String sqlQuery = "SELECT film_id,name,description,releaseDate,duration FROM films;";
         try {
-            return jdbcTemplate.query(sqlQuery, responseMapper).stream()
+            return jdbc.query(sqlQuery, responseMapper).stream()
                     .peek(responseFilm -> responseFilm.setRating(ratingDbStorage.getMpaFilm(responseFilm.getId())))
                     .peek(responseFilm -> responseFilm.setGenres(genreDbStorage.getGenreFilm(responseFilm.getId())))
                     .map(ResponseFilm::getFilmDto).toList();
@@ -179,7 +187,7 @@ public class FilmDbStorage implements FilmStorage {
         String getFilmId = "SELECT film_id FROM films;";
         Map<Integer, List<Integer>> response = new HashMap<>();
         try {
-            Set<Integer> idFilms = new HashSet<>(new HashSet<>(jdbcTemplate.query(getFilmId, idRowMapper)));
+            Set<Integer> idFilms = new HashSet<>(new HashSet<>(jdbc.query(getFilmId, idRowMapper)));
             for (Integer idFilm : idFilms) {
                 response.put(idFilm, getLikesFilm(idFilm));
             }
@@ -187,24 +195,5 @@ public class FilmDbStorage implements FilmStorage {
             throw new RuntimeException(e);
         }
         return response;
-    }
-
-    private PreparedStatementCreator createPreparedStatement(RequestCreateFilm request, String sqlQuery) {
-        return con -> {
-            try {
-                PreparedStatement preparedStatement = con.prepareStatement(sqlQuery, new String[]{"film_id"});
-                preparedStatement.setString(1, request.getName());
-                preparedStatement.setString(2, request.getDescription());
-                preparedStatement.setDate(3, Date.valueOf(request.getReleaseDate()));
-                preparedStatement.setInt(4, request.getDuration());
-                if (sqlQuery.contains("film_id")) {
-                    preparedStatement.setInt(5, request.getId());
-                }
-                return preparedStatement;
-            } catch (DataAccessException e) {
-                log.debug("ошибка при создании PreparedStatement: {}", e.getMessage());
-                throw new RuntimeException();
-            }
-        };
     }
 }
