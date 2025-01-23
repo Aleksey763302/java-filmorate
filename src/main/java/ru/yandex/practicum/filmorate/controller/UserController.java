@@ -1,15 +1,14 @@
 package ru.yandex.practicum.filmorate.controller;
 
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.model.RequestUser;
+import ru.yandex.practicum.filmorate.model.dto.UserDto;
 import ru.yandex.practicum.filmorate.service.UserService;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -22,14 +21,14 @@ public class UserController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public User createUser(@Valid @RequestBody User user) {
-        return service.createUser(user);
+    public ResponseEntity<Optional<UserDto>> createUser(@RequestBody RequestUser user) {
+        return ResponseEntity.ok(service.createUser(user));
     }
 
     @PutMapping
     @ResponseStatus(HttpStatus.OK)
-    public User updateUser(@Valid @RequestBody User user) {
-        return service.updateUser(user);
+    public ResponseEntity<Optional<UserDto>> updateUser(@RequestBody RequestUser user) {
+        return ResponseEntity.ok(service.updateUser(user));
     }
 
     @DeleteMapping("/{id}")
@@ -39,13 +38,18 @@ public class UserController {
     }
 
     @GetMapping
-    public Collection<User> getUsers() {
+    public Optional<List<UserDto>> getUsers() {
         return service.getAllUsers();
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<Optional<UserDto>> getUserById(@PathVariable int id) {
+        return ResponseEntity.ok(service.getUserByID(id));
+    }
+
     @PutMapping("/{id}/friends/{friendId}")
-    public ResponseEntity<User> addFriend(@PathVariable("id") int userId, @PathVariable int friendId) {
-        Optional<User> newFriend = service.addFriend(friendId, userId);
+    public ResponseEntity<UserDto> addFriend(@PathVariable("id") int userId, @PathVariable int friendId) {
+        Optional<UserDto> newFriend = service.addFriend(friendId, userId);
         return newFriend.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.badRequest().build());
     }
 
@@ -55,15 +59,13 @@ public class UserController {
     }
 
     @GetMapping("/{id}/friends")
-    public List<User> getFriendsUser(@PathVariable int id) {
+    public Optional<List<UserDto>> getFriendsUser(@PathVariable int id) {
         return service.getFriendsUser(id);
     }
 
     @GetMapping("/{id}/friends/common/{otherId}")
-    public ResponseEntity<List<User>> getCommonFriends(@PathVariable("id") int userId,
-                                                       @PathVariable("otherId") int otherUserId) {
-        List<User> commonFriends = service.getCommonFriends(otherUserId, userId);
-        return ResponseEntity.ok(commonFriends);
+    public ResponseEntity<Optional<List<UserDto>>> getCommonFriends(@PathVariable("id") int userId,
+                                                          @PathVariable("otherId") int otherUserId) {
+        return ResponseEntity.ok(service.getCommonFriends(otherUserId, userId));
     }
-
 }

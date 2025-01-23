@@ -3,10 +3,13 @@ package ru.yandex.practicum.filmorate.controller;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
-import ru.yandex.practicum.filmorate.model.Film;
+import ru.yandex.practicum.filmorate.model.RequestCreateFilm;
+import ru.yandex.practicum.filmorate.model.RequestUpdateFilm;
+import ru.yandex.practicum.filmorate.model.dto.FilmDto;
 import ru.yandex.practicum.filmorate.service.FilmService;
 
-import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @RestController
@@ -16,8 +19,8 @@ public class FilmController {
     private final FilmService service;
 
     @PostMapping
-    public Film createFilm(@RequestBody Film film) {
-        return service.createFilm(film);
+    public Optional<FilmDto> createFilm(@RequestBody RequestCreateFilm request) {
+        return service.createFilm(request);
     }
 
     @DeleteMapping("/{id}")
@@ -26,17 +29,22 @@ public class FilmController {
     }
 
     @PutMapping
-    public Film updateFilm(@RequestBody Film film) {
-        return service.updateFilm(film);
+    public Optional<FilmDto> updateFilm(@RequestBody RequestUpdateFilm request) {
+        return service.updateFilm(request);
     }
 
     @GetMapping("/popular")
-    public Collection<Film> getFilms(@RequestParam(defaultValue = "10") String count) {
+    public Optional<List<FilmDto>>  getFilms(@RequestParam(defaultValue = "10") String count) {
         return service.getPopularFilms(count);
     }
 
+    @GetMapping("{filmId}")
+    public Optional<FilmDto> getFilmById(@PathVariable("filmId") Integer id) {
+        return service.getFilmById(id);
+    }
+
     @GetMapping
-    public Collection<Film> getAllFilms() {
+    public Optional<List<FilmDto>> getAllFilms() {
         return service.getAllFilms();
     }
 
@@ -49,5 +57,4 @@ public class FilmController {
     public void deleteLike(@PathVariable("id") final int filmId, @PathVariable final int userId) {
         service.deleteLike(filmId, userId);
     }
-
 }
